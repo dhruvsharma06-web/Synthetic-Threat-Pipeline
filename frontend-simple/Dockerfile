@@ -3,7 +3,7 @@ FROM node:20-alpine as build
 WORKDIR /app
 
 # Copy dependencies and install
-COPY package.json package-lock.json ./
+COPY package*.json ./
 RUN npm install
 
 # Copy the rest of the frontend files

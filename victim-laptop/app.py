@@ -5,7 +5,7 @@ import datetime
 app = Flask(__name__)
 
 # Set up logging to a file that Wazuh will monitor
-logging.basicConfig(filename='/var/log/victim_app.log', level=logging.INFO, 
+logging.basicConfig(filename='/var/log/victim/victim_app.log', level=logging.INFO, 
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
 @app.route('/')

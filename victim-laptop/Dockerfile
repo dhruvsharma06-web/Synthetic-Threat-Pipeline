@@ -8,6 +8,11 @@ RUN curl -so wazuh-agent.deb https://packages.wazuh.com/4.x/apt/pool/main/w/wazu
     && dpkg -i wazuh-agent.deb \
     && rm wazuh-agent.deb
 
+# Log routes the agent ships to the manager (replaces the step Start-SOC.ps1 used to patch in)
+COPY agent-logs.xml /tmp/agent-logs.xml
+RUN sed -i '/<localfile>/,/<\/localfile>/d' /var/ossec/etc/ossec.conf \
+    && cat /tmp/agent-logs.xml >> /var/ossec/etc/ossec.conf
+
 # Set up our Victim App
 WORKDIR /app
 COPY requirements.txt .

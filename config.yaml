@@ -1,0 +1,4 @@
+# Shared settings for the Python tools. LOG_DIR / DATA_DIR / MODEL_DIR env vars override these.
+log_dir: logs      # honeypot logs, relative to the repo root
+data_dir: data     # datasets (gitignored)
+model_dir: models  # trained models (gitignored)

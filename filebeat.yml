@@ -12,6 +12,6 @@ setup.ilm.enabled: false
 output.elasticsearch:
   hosts: ["https://wazuh.indexer:9200"]
   username: "admin"
-  password: "admin"
+  password: "${INDEXER_PASSWORD}"
   index: "wazuh-alerts-4.x-%{+yyyy.MM.dd}"
   ssl.verification_mode: none

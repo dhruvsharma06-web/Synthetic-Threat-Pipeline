@@ -1,0 +1,232 @@
+# One compose file for the whole range. Profiles:
+#   range = honeypots + victim app + Loki log pipe (always needed)
+#   soc   = Wazuh indexer/manager/dashboard (heavy, ~8 GB RAM)
+#   ui    = Grafana + React dashboard
+# Example: docker compose --profile range --profile ui up -d --wait
+
+x-tcp-check: &tcp-check
+  interval: 10s
+  timeout: 5s
+  retries: 12
+  start_period: 20s
+
+services:
+  # ---------- range ----------
+  cowrie-ssh:
+    profiles: [range]
+    build: ./Dockerfiles/cowire
+    ports: ["2222:2222"]
+    volumes:
+      - ./logs/cowrie:/home/cowrie/cowrie/var/log/cowrie
+    healthcheck:
+      <<: *tcp-check
+      test: ["CMD", "python3", "-c", "import socket; socket.create_connection(('localhost', 2222), 3)"]
+    restart: unless-stopped
+    networks: [honeynet]
+
+  vsftpd-ftp:
+    profiles: [range]
+    build: ./Dockerfiles/vsftpd
+    ports: ["21:21"]
+    volumes:
+      - ./logs/vsftpd:/var/log/vsftpd
+    healthcheck:
+      <<: *tcp-check
+      test: ["CMD", "bash", "-c", "</dev/tcp/localhost/21"]
+    restart: unless-stopped
+    networks: [honeynet]
+
+  sar2html-web:
+    profiles: [range]
+    build: ./Dockerfiles/sar2html
+    ports: ["80:80"]
+    volumes:
+      - ./logs/sar2html:/var/log/apache2
+    healthcheck:
+      <<: *tcp-check
+      test: ["CMD", "bash", "-c", "</dev/tcp/localhost/80"]
+    restart: unless-stopped
+    networks: [honeynet]
+
+  dvwa-db:
+    profiles: [range]
+    image: mysql:5.7
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DVWA_DB_ROOT_PASSWORD:?set in .env}
+      MYSQL_DATABASE: dvwa
+      MYSQL_USER: dvwa
+      MYSQL_PASSWORD: ${DVWA_DB_PASSWORD:?set in .env}
+    healthcheck:
+      <<: *tcp-check
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+    restart: unless-stopped
+    networks: [honeynet]
+
+  dvwa-web:
+    profiles: [range]
+    build: ./Dockerfiles/dvwa
+    ports: ["8080:80"]
+    environment:
+      DB_SERVER: dvwa-db
+      DB_PASSWORD: ${DVWA_DB_PASSWORD:?set in .env}
+    volumes:
+      - ./logs/dvwa:/var/log/apache2
+      - ./config.inc.php:/var/www/html/dvwa/config/config.inc.php:ro
+    depends_on:
+      dvwa-db: { condition: service_healthy }
+    healthcheck:
+      <<: *tcp-check
+      test: ["CMD", "bash", "-c", "</dev/tcp/localhost/80"]
+    restart: unless-stopped
+    networks: [honeynet]
+
+  victim-app:
+    profiles: [range]
+    build: ./victim-laptop
+    ports: ["5000:5000"]
+    environment:
+      WAZUH_ENABLED: ${WAZUH_ENABLED:-false}
+    volumes:
+      - ./logs/victim:/var/log/victim
+      - ./logs:/var/log/shared_logs:ro
+    healthcheck:
+      <<: *tcp-check
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 5000), 3)"]
+    restart: unless-stopped
+    networks: [honeynet]
+
+  loki:
+    profiles: [range]
+    image: grafana/loki:2.8.2
+    user: "0:0"
+    command: -config.file=/etc/loki/local-config.yaml
+    ports: ["127.0.0.1:3100:3100"]
+    volumes:
+      - ./loki/config:/etc/loki:ro
+      - loki-data:/loki
+      - loki-wal:/wal
+    healthcheck:
+      <<: *tcp-check
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:3100/ready"]
+    restart: unless-stopped
+    networks: [honeynet]
+
+  promtail:
+    profiles: [range]
+    image: grafana/promtail:2.8.2
+    command: -config.file=/etc/promtail/promtail.yaml
+    volumes:
+      - ./promtail/promtail.yaml:/etc/promtail/promtail.yaml:ro
+      - promtail-positions:/tmp/positions
+      - ./logs/cowrie:/home/cowrie/cowrie/var/log/cowrie:ro
+      - ./logs/dvwa:/var/log/dvwa:ro
+      - ./logs/sar2html:/var/log/sar2html:ro
+      - ./logs/vsftpd:/var/log/vsftpd:ro
+    depends_on:
+      loki: { condition: service_healthy }
+    restart: unless-stopped
+    networks: [honeynet]
+
+  # ---------- ui ----------
+  loki-proxy:
+    profiles: [ui]
+    image: nginx:alpine
+    ports: ["127.0.0.1:3200:3100"]
+    volumes:
+      - ./nginx/loki.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      loki: { condition: service_healthy }
+    networks: [honeynet]
+
+  grafana:
+    profiles: [ui]
+    image: grafana/grafana:9.5.0
+    ports: ["127.0.0.1:3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-storage:/var/lib/grafana
+    depends_on:
+      loki: { condition: service_healthy }
+    restart: unless-stopped
+    networks: [honeynet]
+
+  frontend:
+    profiles: [ui]
+    build: ./frontend-simple
+    ports: ["127.0.0.1:8081:80"]
+    depends_on: [loki-proxy]
+    networks: [honeynet]
+
+  # ---------- soc ----------
+  wazuh.indexer:
+    profiles: [soc]
+    image: wazuh/wazuh-indexer:4.7.2
+    hostname: wazuh.indexer
+    environment:
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx1g"
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65536, hard: 65536 }
+    volumes:
+      - wazuh-indexer-data:/var/lib/wazuh-indexer
+    healthcheck:
+      <<: *tcp-check
+      start_period: 60s
+      test: ["CMD-SHELL", "curl -sk https://localhost:9200 -o /dev/null"]
+    restart: unless-stopped
+    networks: [honeynet]
+
+  wazuh.manager:
+    profiles: [soc]
+    build:
+      context: .
+      dockerfile: Dockerfile.manager
+    hostname: wazuh.manager
+    ports: ["127.0.0.1:55000:55000", "1514:1514"]
+    environment:
+      INDEXER_URL: https://wazuh.indexer:9200
+      INDEXER_PASSWORD: ${WAZUH_INDEXER_PASSWORD:?set in .env}
+    volumes:
+      - wazuh-manager-data:/var/ossec/data
+      - ./local_rules.xml:/var/ossec/etc/rules/local_rules.xml:ro
+      - ./local_decoder.xml:/var/ossec/etc/decoders/local_decoder.xml:ro
+    depends_on:
+      wazuh.indexer: { condition: service_healthy }
+    healthcheck:
+      <<: *tcp-check
+      start_period: 60s
+      test: ["CMD-SHELL", "/var/ossec/bin/wazuh-control status | grep -q 'wazuh-analysisd is running'"]
+    restart: unless-stopped
+    networks: [honeynet]
+
+  wazuh.dashboard:
+    profiles: [soc]
+    image: wazuh/wazuh-dashboard:4.7.2
+    hostname: wazuh.dashboard
+    ports: ["127.0.0.1:443:5601"]
+    environment:
+      WAZUH_API_URL: https://wazuh.manager:55000
+      INDEXER_URL: https://wazuh.indexer:9200
+    volumes:
+      - ./wazuh-dashboard-config.yml:/usr/share/wazuh-dashboard/data/wazuh/config/wazuh.yml:ro
+    depends_on:
+      wazuh.manager: { condition: service_healthy }
+    restart: unless-stopped
+    networks: [honeynet]
+
+networks:
+  honeynet: {}
+
+volumes:
+  loki-data:
+  loki-wal:
+  promtail-positions:
+  grafana-storage:
+  wazuh-indexer-data:
+  wazuh-manager-data:

@@ -3,6 +3,7 @@ import json
 import re
 import os
 import urllib.parse
+import yaml
 
 print("""
 ========================================
@@ -10,8 +11,11 @@ print("""
 ========================================
 """)
 
-# The root directory of your logs
-base_log_dir = r"C:\Users\Faraaz Khatib\Downloads\Honeynet-main\Honeynet-main\G2 Honeynet Deploy\logs"
+# Paths come from config.yaml; LOG_DIR in the environment overrides it
+repo_root = os.path.dirname(os.path.abspath(__file__))
+with open(os.path.join(repo_root, "config.yaml"), encoding="utf-8") as f:
+    config = yaml.safe_load(f)
+base_log_dir = os.path.join(repo_root, os.getenv("LOG_DIR", config["log_dir"]))
 
 parsed_data = []
 

@@ -9,7 +9,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 # RUN docker-php-ext-install pdo_mysql # Example if it needed MySQL
 
 # Copy the sar2html web application files into the default Apache web root
-COPY sar2html/ /var/www/html/sar2html/
+# shortcut: tracks upstream master, pin a commit if it changes
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/* \n    && git clone --depth 1 https://github.com/cemtan/sar2html.git /var/www/html/sar2html
 
 # Set appropriate permissions for the web content
 RUN chown -R www-data:www-data /var/www/html/sar2html/ \

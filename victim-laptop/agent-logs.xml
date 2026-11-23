@@ -1,0 +1,9 @@
+<ossec_config>
+  <localfile><log_format>json</log_format><location>/var/log/shared_logs/cowrie/cowrie.json</location></localfile>
+  <localfile><log_format>apache</log_format><location>/var/log/shared_logs/dvwa/access.log</location></localfile>
+  <localfile><log_format>apache</log_format><location>/var/log/shared_logs/dvwa/error.log</location></localfile>
+  <localfile><log_format>apache</log_format><location>/var/log/shared_logs/sar2html/access.log</location></localfile>
+  <localfile><log_format>apache</log_format><location>/var/log/shared_logs/sar2html/error.log</location></localfile>
+  <localfile><log_format>syslog</log_format><location>/var/log/shared_logs/vsftpd/vsftpd.log</location></localfile>
+  <localfile><log_format>syslog</log_format><location>/var/log/victim/victim_app.log</location></localfile>
+</ossec_config>

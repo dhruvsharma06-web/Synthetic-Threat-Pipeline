@@ -7,3 +7,7 @@ USER root
 # Bake in the Filebeat SSL fix
 COPY filebeat.yml /etc/filebeat/filebeat.yml
 RUN chown root:wazuh /etc/filebeat/filebeat.yml && chmod 640 /etc/filebeat/filebeat.yml
+
+# Filebeat template, downloaded at build instead of patched in at boot
+RUN curl -so /etc/filebeat/wazuh-template.json https://raw.githubusercontent.com/wazuh/wazuh/v4.7.2/extensions/elasticsearch/7.x/wazuh-template.json \
+    && chmod go+r /etc/filebeat/wazuh-template.json
