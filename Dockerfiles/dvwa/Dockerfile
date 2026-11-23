@@ -23,7 +23,9 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy DVWA source code to the web root
- COPY dvwa-source/ /var/www/html/dvwa/
+# shortcut: tracks DVWA master, pin a commit if upstream breaks the build
+ARG DVWA_REF=master
+RUN git clone --depth 1 --branch ${DVWA_REF} https://github.com/digininja/DVWA.git /var/www/html/dvwa
 
 # Configure Apache for DVWA (e.g., setting DocumentRoot, allowing .htaccess)
 RUN echo "<Directory /var/www/html/dvwa>" >> /etc/apache2/sites-available/000-default.conf && \
@@ -34,7 +36,7 @@ RUN echo "<Directory /var/www/html/dvwa>" >> /etc/apache2/sites-available/000-de
 # Set appropriate permissions for the DVWA web content
 RUN chown -R www-data:www-data /var/www/html/dvwa/ \
     && chmod -R 777 /var/www/html/dvwa/hackable/uploads/ \
-    && chmod -R 777 /var/www/html/dvwa/external/phpids/0.6/lib/IDS/tmp/
+    && (chmod -R 777 /var/www/html/dvwa/external/phpids/0.6/lib/IDS/tmp/ 2>/dev/null || true)
 
 # Copy custom DVWA config (e.g., for database connection)
 # You would need to create a config.inc.php that points to a separate database container

@@ -11,3 +11,24 @@ venv/
 # OS Files
 .DS_Store
 Thumbs.db
+
+# Secrets and keys (v2)
+.env
+**/.env
+!.env.example
+*.pem
+*.key
+certs/
+internal_users.yml
+
+# Build output, data and models
+node_modules/
+loki/data/
+data/
+models/
+*.parquet
+*.joblib
+graphify-out/
+.graphifyignore
+*.bak
+*.zip
