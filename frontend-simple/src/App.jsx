@@ -1,7 +1,8 @@
 ﻿import React, { useEffect, useState, useRef } from "react";
 import AlertToast from "./components/AlertToast";
-import AttackerProfile from "./AttackerProfile"; 
-import WorldMap from "./WorldMap"; 
+import AlertsPanel from "./components/AlertsPanel";
+import AttackerProfile from "./AttackerProfile";
+import WorldMap from "./WorldMap";
 import "./styles.css";
 
 const LOKI_BASE = import.meta.env.VITE_LOKI_URL || "http://localhost:3100";
@@ -143,6 +144,8 @@ export default function App() {
 
       <main>
         <WorldMap logs={logs} />
+
+        <AlertsPanel />
 
         <h3 style={{ marginTop: '20px', marginLeft: '10px', color: '#ccc' }}>Live Attack Feed</h3>
         <div className="logs-list">

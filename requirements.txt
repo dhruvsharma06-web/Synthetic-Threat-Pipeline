@@ -8,8 +8,13 @@ scikit-learn>=1.4,<2
 joblib>=1.3,<2
 matplotlib>=3.8,<4
 
+# live scoring service (W5)
+fastapi>=0.110,<1
+uvicorn>=0.29,<1
+
 # dev / CI
 pytest>=8,<9
 ruff>=0.6,<1
+httpx>=0.27,<1   # FastAPI TestClient
 # optional: SHAP explanations if installed; pipeline falls back to permutation importance without it
 # shap>=0.44

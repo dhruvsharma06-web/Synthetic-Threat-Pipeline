@@ -22,9 +22,9 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - name: Lint (v2 code)
-        run: ruff check bots pipeline
+        run: ruff check bots pipeline controller
       - name: Test
-        run: pytest bots pipeline -q
+        run: pytest bots pipeline controller -q
 
   secret-scan:
     name: gitleaks (working tree)

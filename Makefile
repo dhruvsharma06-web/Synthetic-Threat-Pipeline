@@ -8,8 +8,8 @@ train:
 	python -m pipeline.train
 
 test:
-	python -m pytest bots pipeline -q
+	python -m pytest bots pipeline controller -q
 
 # same lint CI runs
 lint:
-	python -m ruff check bots pipeline
+	python -m ruff check bots pipeline controller
