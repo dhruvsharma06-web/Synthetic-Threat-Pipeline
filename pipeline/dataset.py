@@ -5,7 +5,7 @@ Usage: python -m pipeline.dataset  (paths from config.yaml / env: LOG_DIR, DATA_
 import glob
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import yaml
 
@@ -46,7 +46,7 @@ def data_card(events, n_labelled, feat_df):
         if e["label"] == 1:
             by_type[e["attack_type"]] += 1
     return {
-        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "events_total": len(events),
         "events_labelled": n_labelled,
         "events_by_source": dict(by_source),

@@ -1,0 +1,11 @@
+# Lint config for the v2 Python (bots, pipeline). Correctness + imports + modernization;
+# style/preview rules stay off to keep signal high. CI runs exactly this.
+target-version = "py311"
+line-length = 120
+
+[lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E741"]  # single-char names (l/g) read fine in the small window-feature helpers
+
+[lint.per-file-ignores]
+"**/test_*.py" = ["B", "E501"]  # bugbear fights pytest idioms; long lines are fixture data (log/JSON literals)

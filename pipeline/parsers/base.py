@@ -1,5 +1,5 @@
 """Shared event schema helpers for all honeypot parsers."""
-from datetime import datetime, timezone
+from datetime import UTC
 
 SCHEMA_KEYS = [
     "ts", "source", "service", "src_ip", "dst_port", "event", "username",
@@ -28,5 +28,5 @@ def event(**kwargs):
 def to_utc_iso(dt):
     """Format a datetime as ISO-8601 UTC (naive datetimes are assumed UTC)."""
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"

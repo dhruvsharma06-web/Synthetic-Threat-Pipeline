@@ -10,5 +10,6 @@ matplotlib>=3.8,<4
 
 # dev / CI
 pytest>=8,<9
+ruff>=0.6,<1
 # optional: SHAP explanations if installed; pipeline falls back to permutation importance without it
 # shap>=0.44

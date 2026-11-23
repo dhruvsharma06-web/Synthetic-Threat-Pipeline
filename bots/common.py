@@ -10,7 +10,7 @@ import os
 import random
 import socket
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 LABEL_FIELDS = ["bot_id", "label", "attack_type", "t_start", "t_end", "src_ip"]
 
@@ -33,7 +33,7 @@ class Ctx:
 
 
 def utc_now():
-    return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 def own_ip(host):

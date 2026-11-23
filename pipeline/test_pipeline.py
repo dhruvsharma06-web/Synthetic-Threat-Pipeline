@@ -1,5 +1,4 @@
 """Self-check for label_join + features (no containers)."""
-import pandas as pd
 
 from pipeline import features, label_join
 from pipeline.parsers import base

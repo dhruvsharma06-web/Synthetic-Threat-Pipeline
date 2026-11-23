@@ -10,7 +10,6 @@ def _table(n=60, seed=0):
     rng = np.random.default_rng(seed)
     rows = []
     base = pd.Timestamp("2026-01-01T00:00:00Z")
-    cols = train.NON_FEATURES  # fill the rest with the real feature names via features module
     feat = ["events", "events_per_min", "distinct_usernames", "distinct_payloads",
             "failed_login_ratio", "http_error_ratio", "success_after_fail",
             "iat_mean", "iat_std", "burstiness", "distinct_services", "distinct_ports",

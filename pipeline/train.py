@@ -14,7 +14,7 @@ Not built here (needs data the overnight bot run produces, so untestable now):
 import json
 import os
 import warnings
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import joblib
 import numpy as np
@@ -22,8 +22,14 @@ import pandas as pd
 from sklearn.ensemble import GradientBoostingClassifier, IsolationForest, RandomForestClassifier
 from sklearn.inspection import permutation_importance
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import (average_precision_score, confusion_matrix, f1_score,
-                             precision_score, recall_score, roc_auc_score)
+from sklearn.metrics import (
+    average_precision_score,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
@@ -126,7 +132,7 @@ def _explain(model, X_te, y_te, cols):
         r = permutation_importance(model, X_te, y_te, n_repeats=10, random_state=0, n_jobs=-1)
         vals = r.importances_mean
         src = "permutation_importance"
-    top = sorted(zip(cols, (round(float(v), 4) for v in vals)), key=lambda kv: -kv[1])[:10]
+    top = sorted(zip(cols, (round(float(v), 4) for v in vals), strict=True), key=lambda kv: -kv[1])[:10]
     return {"method": src, "top_features": dict(top)}
 
 
@@ -142,7 +148,7 @@ def build(data_dir=None, model_dir=None):
     os.makedirs(model_dir, exist_ok=True)
 
     card = {
-        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "feature_rows_total": int(len(df)),
         "labelled_rows": int(len(labelled)),
         "label_balance": labelled["label"].value_counts().to_dict() if len(labelled) else {},

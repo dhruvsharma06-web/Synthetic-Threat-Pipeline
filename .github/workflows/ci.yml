@@ -1,0 +1,47 @@
+name: CI
+
+# Lint + test the Python, and fail if any secret is committed to the tree.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-test:
+    name: ruff + pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Lint (v2 code)
+        run: ruff check bots pipeline
+      - name: Test
+        run: pytest bots pipeline -q
+
+  secret-scan:
+    name: gitleaks (working tree)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Scan the tree as files (--no-git), not history: this blocks any secret in the
+      # current checkout without failing on the upstream's already-known leaked keys,
+      # which are tracked separately as a rotate-and-rewrite task.
+      - name: Install gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz \
+            | tar -xz -C /usr/local/bin gitleaks
+      - name: Scan
+        run: gitleaks detect --no-git --redact --verbose --exit-code 1
+
+# Deferred (needs the Docker range running, so it can't live here yet):
+#   - full-stack smoke test: `docker compose --profile range up` + probe the honeypots/API.
+#     Add as a separate workflow once the compose stack is validated on a machine with Docker.
+#   - frontend eslint: frontend-simple has no eslint config or lockfile yet; wire it when that lands.

@@ -16,7 +16,7 @@ _RE = re.compile(
 
 def parse(path):
     rows = []
-    with open(path, "r", encoding="utf-8", errors="replace") as f:
+    with open(path, encoding="utf-8", errors="replace") as f:
         for line in f:
             m = _RE.search(line.strip())
             if not m:
