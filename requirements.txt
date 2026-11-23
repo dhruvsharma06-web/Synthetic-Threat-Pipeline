@@ -1,0 +1,11 @@
+# Runtime deps for the bots, parsers and ML. Pin majors; training stays on the laptop.
+paramiko>=3,<4
+requests>=2.31,<3
+PyYAML>=6,<7
+pandas>=2,<3
+numpy>=1.26,<3
+scikit-learn>=1.4,<2
+matplotlib>=3.8,<4
+
+# dev / CI
+pytest>=8,<9
