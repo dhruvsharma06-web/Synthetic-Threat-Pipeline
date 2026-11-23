@@ -1,62 +1,77 @@
-1\. System Requirements
------------------------
+# Setup & operations guide
 
-### Hardware Infrastructure
+Detailed setup, the Compose profiles, and troubleshooting. For the fast path see the
+[README](README.md) quick start.
 
-To ensure stable execution of the local SIEM alongside multiple containerized honeypot servers, the host machine requires adequate resource allocation:
+## 1. Requirements
 
-*   **CPU:** 4+ Cores (Intel i5/AMD Ryzen 5 architecture or higher recommended)
-    
-*   **RAM:** 16 GB recommended (8 GB absolute minimum for stable Docker execution)
-    
-*   **Storage:** 20 GB of available space (SSD highly recommended to prevent I/O bottlenecks during high-volume log generation)
-    
+| | |
+|---|---|
+| CPU | 4+ cores |
+| RAM | 8 GB for the `range` profile; 16 GB if you also run the `soc` (Wazuh) profile |
+| Disk | 20 GB free, SSD recommended (high log volume) |
+| Software | Docker Desktop (WSL2 backend on Windows), Python 3.11+, Git, Node 18+ for the dashboard |
 
-### Software Prerequisites
+## 2. Install
 
-*   **Docker Desktop** (with WSL2 backend enabled if deploying on Windows)
-    
-*   **Python 3.8+** (Configured in System PATH)
-    
-*   **Git** 
-    
+```bash
+git clone https://github.com/dhruvsharma06-web/Synthetic-Threat-Pipeline.git
+cd Synthetic-Threat-Pipeline
+cp .env.example .env            # fill in passwords — .env is gitignored, never commit it
+pip install -r requirements.txt
+```
 
- 2\. Environment Configuration
--------------------------------
+## 3. Compose profiles
 
-### Phase A: Repository Initialization
+`docker-compose.yml` is one file with three profiles, so you boot only what you need:
 
-Clone the repository to the target host machine:
+| profile | brings up | cost |
+|---------|-----------|------|
+| `range` | the honeypots (Cowrie, VSFTPD, DVWA, sar2html, Flask victim) | light |
+| `soc`   | Wazuh indexer / manager / dashboard | heavy (~8 GB RAM) |
+| `ui`    | Loki + Promtail + Grafana log stack and the dashboard | medium |
 
+```bash
+docker compose --profile range up -d                                  # honeypots only
+docker compose --profile range --profile ui up -d                     # + log stack + dashboard
+docker compose --profile range --profile soc --profile ui up -d       # everything
+docker compose down -v                                                # stop and wipe volumes
+```
 
+Allow 3–5 minutes for the `soc` profile to initialise. Admin ports bind to `127.0.0.1`
+only; the honeypot network blocks outbound traffic.
 
-`git clone https://github.com/FaraazKhatib/Synthetic-Threat-Pipeline.git  cd Synthetic-Threat-Pipeline`
+## 4. Generate traffic
 
-### Phase B: Python Dependencies
+```bash
+python -m bots.scheduler --dry-run                                  # preview the schedule
+python -m bots.scheduler --hours 8 --seed 1 --attack-ratio 0.5      # overnight labelled run
+python -m bots attackers.ssh_brute --bot-id demo-1 --duration 60    # run a single bot
+```
+Each run appends a ground-truth label row the pipeline joins against. Benign and attacker
+bots run concurrently so the dataset has both classes.
 
-The data fuser and machine learning pipeline rely on specific data science libraries.
+## 5. Build, train, serve
 
-`pip install pandas scikit-learn matplotlib   `
+```bash
+make dataset     # logs → common schema → label join → features.parquet + data_card.json
+make train       # baselines + models → model.joblib + model_card.json
+make test        # full test suite
+make lint        # ruff
 
-### Phase C: Infrastructure Boot-Up
+uvicorn pipeline.api:app --port 8000     # scoring API (http://localhost:8000/health)
+python -m controller.brain                # Loki worker: tails logs and scores live
+cd frontend-simple && npm install && npm run dev
+```
 
-Initialize the Docker containers to pull the honeypot images (Cowrie, VSFTPD, DVWA) and establish the isolated local network.
+## 6. Troubleshooting
 
-`# Execute the master deployment script  .\Start-SOC.ps1`  
-
-_Note: Allow 3–5 minutes for the containers to fully initialize and for the Wazuh Agent to complete its required system integrity scan._
-
-
- 3\. Pipeline Execution
-------------------------
-
-Once the infrastructure is actively listening, the data generation and classification pipeline can be executed sequentially:
-
-1.  python chaos.py_Expected Output: Real-time Level 12 Critical Alerts populated on the local Wazuh Dashboard._
-    
-2.  python reader.py
-    
-3.  python train\_model.py
-    
-
-**Troubleshooting Note:** If the SIEM dashboard fails to display web-based SQL injection alerts during testing, verify that the dashboard time-filter is set to UTC, or restart the Wazuh manager to ensure the URL-encoded custom XML rules have been fully applied.
+- **FTP/SSH bots fail to log in** — the honeypot accounts must exist in the containers;
+  tune bot credentials once the range is up (the placeholders assume default accounts).
+- **`make dataset` finds nothing** — logs land under `logs/<source>/`; confirm the range
+  is writing there and `config.yaml`'s `log_dir` matches.
+- **Dashboard shows "scorer offline"** — the API isn't running or `VITE_API_URL` is wrong.
+- **`make train` says `insufficient_labelled_data`** — no attack labels yet; run the bots,
+  rebuild the dataset, retrain.
+- **Wazuh dashboard won't start** — the `soc` profile needs the full RAM; check
+  `docker compose logs wazuh.manager`.
